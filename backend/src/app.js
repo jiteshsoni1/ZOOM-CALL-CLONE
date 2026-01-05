@@ -7,6 +7,9 @@ import mongoose from "mongoose";
 import { connectToSocket } from "./controllers/socketManager.js";
 
 import cors from "cors";
+import userRoutes from "./routes/usersroutes.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
 const server = createServer(app);
@@ -17,16 +20,26 @@ app.use(cors());
 app.use(express.json({limit: '40kb'}));
 app.use(express.urlencoded({ extended: true, limit: '40kb' }));
 
-const start = async () => {
-    app.set("mongo_user")
-  const connectionDb = await mongoose.connect(
-    "mongodb+srv://ZoomCallJ:IFpWW0U1JhPESzBk@zoomcallcluster.bexecu5.mongodb.net/?appName=ZoomCallCluster"
-  );
-  console.log("MongoConnected");
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v2/users", userRoutes);
 
-  server.listen(app.get("port"), () => {
-    console.log("Server is running on port 8000");
-  });
+
+const start = async () => {
+  try {
+    
+    console.log("ENV CHECK:", process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ MongoDB Connected");
+    console.log("MONGO_URI:", process.env.MONGO_URI);
+
+
+    server.listen(app.get("port"), () => {
+      console.log(`🚀 Server running on port ${app.get("port")}`);
+    });
+  } catch (error) {
+    console.error("❌ MongoDB connection failed:", error.message);
+    process.exit(1);
+  }
 };
 
 start();
