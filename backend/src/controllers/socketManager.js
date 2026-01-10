@@ -1,116 +1,101 @@
-import { Server } from "socket.io";
+import httpStatus from "http-status";
+import { User } from "../models/user.model.js";
+import bcrypt, { hash } from "bcrypt"
 
-let connections = {};
-let messages = {};
-let timeOnline = {};
+import crypto from "crypto"
+import { Meeting } from "../models/meeting.model.js";
+const login = async (req, res) => {
 
-export const connectToSocket = (server) => {
-  const io = new Server(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-      allowedHeaders: ["*"],
-      credentials: true,
-    },
-  });
+    const { username, password } = req.body;
 
-  io.on("connection", (socket) => {
-    console.log("SOMETHING CONNECTED");
+    if (!username || !password) {
+        return res.status(400).json({ message: "Please Provide" })
+    }
 
-    socket.on("join-call", (path) => {
-      if (connections[path] === undefined) {
-        connections[path] = [];
-      }
-      connections[path].push(socket.id);
-
-      timeOnline[socket.id] = new Date();
-
-      // connections[path].forEach(elem => {
-      //     io.to(elem)
-      // })
-
-      for (let a = 0; a < connections[path].length; a++) {
-        io.to(connections[path][a]).emit(
-          "user-joined",
-          socket.id,
-          connections[path]
-        );
-      }
-
-      if (messages[path] !== undefined) {
-        for (let a = 0; a < messages[path].length; ++a) {
-          io.to(socket.id).emit(
-            "chat-message",
-            messages[path][a]["data"],
-            messages[path][a]["sender"],
-            messages[path][a]["socket-id-sender"]
-          );
-        }
-      }
-    });
-
-    socket.on("signal", (toId, message) => {
-      io.to(toId).emit("signal", socket.id, message);
-    });
-
-    socket.on("chat-message", (data, sender) => {
-      const [matchingRoom, found] = Object.entries(connections).reduce(
-        ([room, isFound], [roomKey, roomValue]) => {
-          if (!isFound && roomValue.includes(socket.id)) {
-            return [roomKey, true];
-          }
-
-          return [room, isFound];
-        },
-        ["", false]
-      );
-
-      if (found === true) {
-        if (messages[matchingRoom] === undefined) {
-          messages[matchingRoom] = [];
+    try {
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(httpStatus.NOT_FOUND).json({ message: "User Not Found" })
         }
 
-        messages[matchingRoom].push({
-          sender: sender,
-          data: data,
-          "socket-id-sender": socket.id,
+
+        let isPasswordCorrect = await bcrypt.compare(password, user.password)
+
+        if (isPasswordCorrect) {
+            let token = crypto.randomBytes(20).toString("hex");
+
+            user.token = token;
+            await user.save();
+            return res.status(httpStatus.OK).json({ token: token })
+        } else {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid Username or password" })
+        }
+
+    } catch (e) {
+        return res.status(500).json({ message: `Something went wrong ${e}` })
+    }
+}
+
+
+const register = async (req, res) => {
+    const { name, username, password } = req.body;
+
+
+    try {
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(httpStatus.FOUND).json({ message: "User already exists" });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = new User({
+            name: name,
+            username: username,
+            password: hashedPassword
         });
-        console.log("message", matchingRoom, ":", sender, data);
 
-        connections[matchingRoom].forEach((elem) => {
-          io.to(elem).emit("chat-message", data, sender, socket.id);
-        });
-      }
-    });
+        await newUser.save();
 
-    socket.on("disconnect", () => {
-      var diffTime = Math.abs(timeOnline[socket.id] - new Date());
+        res.status(httpStatus.CREATED).json({ message: "User Registered" })
 
-      var key;
+    } catch (e) {
+        res.json({ message: `Something went wrong ${e}` })
+    }
 
-      for (const [k, v] of JSON.parse(
-        JSON.stringify(Object.entries(connections))
-      )) {
-        for (let a = 0; a < v.length; ++a) {
-          if (v[a] === socket.id) {
-            key = k;
+}
 
-            for (let a = 0; a < connections[key].length; ++a) {
-              io.to(connections[key][a]).emit("user-left", socket.id);
-            }
 
-            var index = connections[key].indexOf(socket.id);
+const getUserHistory = async (req, res) => {
+    const { token } = req.query;
 
-            connections[key].splice(index, 1);
+    try {
+        const user = await User.findOne({ token: token });
+        const meetings = await Meeting.find({ user_id: user.username })
+        res.json(meetings)
+    } catch (e) {
+        res.json({ message: `Something went wrong ${e}` })
+    }
+}
 
-            if (connections[key].length === 0) {
-              delete connections[key];
-            }
-          }
-        }
-      }
-    });
-  });
+const addToHistory = async (req, res) => {
+    const { token, meeting_code } = req.body;
 
-  return io;
-};
+    try {
+        const user = await User.findOne({ token: token });
+
+        const newMeeting = new Meeting({
+            user_id: user.username,
+            meetingCode: meeting_code
+        })
+
+        await newMeeting.save();
+
+        res.status(httpStatus.CREATED).json({ message: "Added code to history" })
+    } catch (e) {
+        res.json({ message: `Something went wrong ${e}` })
+    }
+}
+
+
+export { login, register, getUserHistory, addToHistory }

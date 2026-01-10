@@ -7,39 +7,33 @@ import mongoose from "mongoose";
 import { connectToSocket } from "./controllers/socketManager.js";
 
 import cors from "cors";
-import userRoutes from "./routes/usersroutes.js";
-import dotenv from "dotenv";
-dotenv.config();
+import userRoutes from "./routes/users.routes.js";
 
 const app = express();
 const server = createServer(app);
 const io = connectToSocket(server);
 
-app.set("port", process.env.PORT || 8000);
+
+app.set("port", (process.env.PORT || 8000))
 app.use(cors());
-app.use(express.json({limit: '40kb'}));
-app.use(express.urlencoded({ extended: true, limit: '40kb' }));
+app.use(express.json({ limit: "40kb" }));
+app.use(express.urlencoded({ limit: "40kb", extended: true }));
 
 app.use("/api/v1/users", userRoutes);
-app.use("/api/v2/users", userRoutes);
-
 
 const start = async () => {
-  try {
-    
-    console.log("ENV CHECK:", process.env.MONGO_URI);
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ MongoDB Connected");
-    console.log("MONGO_URI:", process.env.MONGO_URI);
+    app.set("mongo_user")
+    const connectionDb = await mongoose.connect("mongodb+srv://imdigitalashish:imdigitalashish@cluster0.cujabk4.mongodb.net/")
 
-
+    console.log(`MONGO Connected DB HOst: ${connectionDb.connection.host}`)
     server.listen(app.get("port"), () => {
-      console.log(`🚀 Server running on port ${app.get("port")}`);
+        console.log("LISTENIN ON PORT 8000")
     });
-  } catch (error) {
-    console.error("❌ MongoDB connection failed:", error.message);
-    process.exit(1);
-  }
-};
+
+
+
+}
+
+
 
 start();
