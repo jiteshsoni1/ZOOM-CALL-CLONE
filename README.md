@@ -1,4 +1,4 @@
-📹 Zoom Call Clone — Real-Time Video Chat App
+# Zoom Call Clone — Real-Time Video Chat App
 
 A real-time video conferencing application inspired by Zoom.
 Built with JavaScript, React, WebRTC, Socket.io, Node.js, and CORS support for secure backend communication.
