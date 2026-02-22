@@ -6,7 +6,7 @@ import crypto from "crypto";
 import { Meeting } from "../models/meeting.model.js";
 const login = async (req, res) => {
   const { username, password } = req.body;
-
+const sanitizedUsername = username.toLowerCase().trim();
   if (!username || !password) {
     return res.status(400).json({ message: "Please Provide" });
   }
@@ -39,7 +39,7 @@ const login = async (req, res) => {
 
 const register = async (req, res) => {
   const { name, username, password } = req.body;
-
+const sanitizedUsername = username.toLowerCase().trim();
   try {
     const existingUser = await User.findOne({ username });
     if (existingUser) {
