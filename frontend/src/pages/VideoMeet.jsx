@@ -19,7 +19,12 @@ var connections = {};
 
 const peerConfigConnections = {
     "iceServers": [
-        { "urls": "stun:stun.l.google.com:19302" }
+        { "urls": "stun:stun.l.google.com:19302" },
+        {
+            "urls": "turn:your-turn-server-url:port",
+            "username": "your-username",
+            "credential": "your-password"
+        }
     ]
 }
 
